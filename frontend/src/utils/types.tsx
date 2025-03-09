@@ -1,5 +1,7 @@
-export default interface Device {
+
+interface Device {
     hostname: string;
     mac: string;
-    ip?: string;
+    interface?: string;
+
 }

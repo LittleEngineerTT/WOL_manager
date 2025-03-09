@@ -6,7 +6,7 @@ import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Grid from '@mui/material/Grid2';
 
-import Device from '../utils/types';
+import {Device} from '../utils/types';
 import {DeviceCard} from "../utils/Devices/DeviceCard";
 import {DeviceRegister} from "../utils/Devices/DeviceRegister";
 
@@ -17,7 +17,6 @@ interface DevicesProps {
 
 export const Devices: React.FC<DevicesProps> = () => {
     const [devices, setDevices] = useState<Array<Device>>([]);
-    const [toUpdate, setToUpdate] = useState(true);
 
     const get_devices = async () => {
         const response = await send_request(config.backend_url, "devices", {});
@@ -30,11 +29,10 @@ export const Devices: React.FC<DevicesProps> = () => {
     }
 
     useEffect(() => {
-        if (toUpdate) {
-            setToUpdate(false);
+        if (Object.keys(devices).length == 0) {
             get_devices();
         }
-    }, [toUpdate])
+    }, [devices])
 
     return (
         <Container sx={{
@@ -59,12 +57,12 @@ export const Devices: React.FC<DevicesProps> = () => {
                             justifyContent: 'center',
                             backgroundColor: '#FCF5C7'
                         }}>
-                            <DeviceCard device={device} setToUpdate={setToUpdate}/>
+                            <DeviceCard device={device} setDevices={setDevices}/>
                         </Grid>
                     ))}
                 </Grid>
 
-                    <DeviceRegister setToUpdate={setToUpdate}/>
+                    <DeviceRegister setDevices={setDevices}/>
             </Box>
 
         </Container>

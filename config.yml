@@ -1,0 +1,4 @@
+name_to_mac_file: "name_to_mac.json"
+path_to_private_key: "ssh_conf/router_ed25519"
+router_ip: "clichy.lac-coloc.fr"
+router_hostname: "vyos"

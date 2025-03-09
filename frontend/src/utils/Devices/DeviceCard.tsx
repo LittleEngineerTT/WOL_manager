@@ -1,4 +1,4 @@
-import {Device} from "../types";
+import Device from "../types";
 import React, {useEffect, useState} from "react";
 import {Box} from "@mui/material";
 import {Button} from "@mui/material";
@@ -7,10 +7,10 @@ import config from "../../config.d/config.yaml";
 
 interface DeviceCardProps {
     device: Device;
-    setDevices: React.Dispatch<React.SetStateAction<Array<Device>>>;
+    setToUpdate: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
+export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => {
 
     const [status, setStatus] = useState(false);
 
@@ -30,7 +30,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
 
     const delete_device = async () => {
         await send_request(config.backend_url, "delete", device);
-        setDevices([]);
+        setToUpdate(true);
     }
 
     useEffect(() => {
@@ -44,6 +44,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
             </div>
             <div>
                 status: {status ? "True" : "False"}
+            </div>
+            <div>
+                ip: {device.ip}
+            </div>
+            <div>
+                mac: {device.mac}
             </div>
             <Button variant={"text"} onClick={start_device} sx={{color: '#FFC09F'}}>
                 Start

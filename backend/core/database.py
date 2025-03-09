@@ -1,18 +1,18 @@
-from threading import local
+from core.config import get_config
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-thread_local = local()
+
+config = get_config()
+Base = declarative_base()
 
 
 def get_db():
-    if not hasattr(thread_local, "db"):
-        # Create SQLalchemy engine
-        DATABASE_URL = "sqlite:///core/devices.db"
-        engine = create_engine(DATABASE_URL, echo=True)
+    # Create SQLalchemy engine
+    engine = create_engine(config["database_url"], echo=True)
+    Base.metadata.create_all(engine)
 
-        # SQLAlchemy session configuration
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        thread_local.db = SessionLocal()
-    return thread_local.db
+    # SQLAlchemy session configuration
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return SessionLocal()

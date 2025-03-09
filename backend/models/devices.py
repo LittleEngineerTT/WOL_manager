@@ -2,15 +2,11 @@
 This file is useful to abstract database implementation
 """
 
-from core.database import get_db
+from core.database import get_db, Base
 
 from typing import Self
 
-from sqlalchemy import Column, String
-from sqlalchemy.orm import declarative_base
-
-
-Base = declarative_base()
+from sqlalchemy import Column, String, func
 
 
 class Device(Base):
@@ -19,9 +15,9 @@ class Device(Base):
     """
 
     __tablename__ = 'devices'
-    hostname = Column(String)
-    mac = Column(String, primary_key=True)
-    interface = Column(String)
+    hostname = Column(String, nullable=False)
+    mac = Column(String, primary_key=True, nullable=False, unique=True)
+    ip = Column(String, nullable=False, unique=True)
 
 
     @classmethod
@@ -61,10 +57,29 @@ class Device(Base):
         """
         db = get_db()
         try:
-            device_instance = db.query(cls).filter(cls.mac == device["mac"]).first()
+            device_instance = db.query(cls).filter(func.lower(cls.mac) == device["mac"].lower()).first()
             db.delete(device_instance)
 
             # Save changes
             db.commit()
+        finally:
+            db.close()
+
+
+    @classmethod
+    def update_device(cls, device: Self) -> None:
+        """
+        Delete device from the database.
+        """
+        db = get_db()
+        try:
+            device_instance = db.query(cls).filter(cls.mac == device["mac"].upper()).first()
+
+            if device_instance:
+                device_instance.hostname = device["hostname"]
+                device_instance.ip = device["ip"]
+
+                # Save changes
+                db.commit()
         finally:
             db.close()

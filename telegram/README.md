@@ -1,5 +1,5 @@
 # Wake On Lan
-This project is a pretty simple wake on lan (WOl) implementation in python. It let you manage remote ressources inside a router network.. We use telegram to interact with the WOL manager. The WOL manager is run inside a VM and can interact with a specific router via SSH to perform some operations.
+This project is a pretty simple wake on lan (WOl) implementation in python. It let you manage remote resources inside a router network. We use telegram to interact with the WOL manager. The WOL manager run inside a VM and can interact with a specified router via SSH to perform some operations.
 
 ### Prerequisites
 - Python3 

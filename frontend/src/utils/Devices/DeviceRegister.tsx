@@ -1,4 +1,4 @@
-import {Device} from "../types";
+import Device from "../types";
 import React, {useState} from "react";
 import {Button, TextField} from "@mui/material";
 import Grid from '@mui/material/Grid2';
@@ -36,26 +36,37 @@ const FieldEntry: React.FC<FieldEntryProps> = ({inputData, setInputData, title})
 }
 
 
-
 interface DeviceRegisterProps {
-    setDevices: React.Dispatch<React.SetStateAction<Array<Device>>>;
+    setToUpdate: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const DeviceRegister: React.FC<DeviceRegisterProps> = ({setDevices}) => {
+export const DeviceRegister: React.FC<DeviceRegisterProps> = ({setToUpdate}) => {
   const [hostname, setHostname] = useState<string>("");
   const [mac, setMac] = useState<string>("");
-  const [deviceInterface, setDeviceInterface] = useState<string>("");
+  const [deviceIP, setDeviceIP] = useState<string>("");
 
   const register_device = async () => {
         // Create device from form data
         const new_device: Device = {
             hostname: hostname,
             mac: mac,
-            interface: deviceInterface
+            ip: deviceIP
         }
 
         await send_request(config.backend_url, "register", new_device);
-        setDevices([]);
+        setToUpdate(true);
+    }
+
+    const update_device = async () => {
+        // Create device from form data
+        const new_device: Device = {
+            hostname: hostname,
+            mac: mac,
+            ip: deviceIP
+        }
+
+        await send_request(config.backend_url, "update", new_device);
+        setToUpdate(true);
     }
 
     return (
@@ -69,10 +80,21 @@ export const DeviceRegister: React.FC<DeviceRegisterProps> = ({setDevices}) => {
             }}>
                 <FieldEntry inputData={hostname} setInputData={setHostname} title={"Hostname"}/>
                 <FieldEntry inputData={mac} setInputData={setMac} title={"Mac"}/>
-                <FieldEntry inputData={deviceInterface} setInputData={setDeviceInterface} title={"Interface"}/>
-                <Button variant={"text"} onClick={register_device} sx={{color: '#FFC09F'}}>
-                    Register
-                </Button>
+                <FieldEntry inputData={deviceIP} setInputData={setDeviceIP} title={"IP"}/>
+
+                <Grid size={11} >
+                    <Button variant={"text"} onClick={update_device} sx={{color: '#FFC09F'}}>
+                        Update
+                    </Button>
+                </Grid>
+
+
+                <Grid size={1} >
+                    <Button variant={"text"} onClick={register_device} sx={{color: '#FFC09F',}}>
+                        Register
+                    </Button>
+                </Grid>
+
             </Grid>
 
         </div>

@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  backend:
+    build: ./backend
+    container_name: wol-backend
+    environment:
+      API_KEY: ${API_KEY}
+    network_mode: host
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_KEY: ${API_KEY}
+    container_name: wol-frontend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - backend

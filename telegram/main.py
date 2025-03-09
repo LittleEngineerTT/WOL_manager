@@ -1,4 +1,4 @@
-from my_telegram import *
+from core.my_telegram import new_telegram_run
 
 
 def main():

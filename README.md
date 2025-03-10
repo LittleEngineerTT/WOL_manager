@@ -1,14 +1,30 @@
-# Wake On Lan
-This project is a pretty simple wake on lan (WOl) implementation in python. It let you manage remote ressources inside a router network.. We use telegram to interact with the WOL manager. The WOL manager is run inside a VM and can interact with a specific router via SSH to perform some operations.
+# WOL Manager
 
-### Prerequisites
-- Python3 
-- SSH router access
+Simple WOL (Wake-on-lan) project that let you manage multiple devices. \
+This WOL manager can take two forms. \
+First is a web app, second is a telegram bot.
 
-### How to use it ?
+## Web App
+
+### Requirements
+- docker compose
+
+### Configuration
+- In the root dir, edit .env file to select a very strong api-key
+- Fulfil `backend/config.d/config.yml` network field with your bot-id.
+- Feel free to change default path of database_url
+
+
+## Telegram
+
+### Requirements
+- docker compose
+
+### Configuration
+- In the root dir, edit .env file to select a very strong api-key
 - Create a telegram bot using BotFather then claim its ID
-- Fork this project
-- Edit gitlab variables with you values including bot_id with previous value claimed
-- Fill the config.yml file
-- Push on master, that should run a pipeline
-- Talk to the bot using `/help` to see actions.
+- Fulfil `backend/config.d/config.yml` network field with your
+- Talk to the bot using `/help` and see actions.
+
+## Execution
+- Exec `docker compose build && docker compose up -d`

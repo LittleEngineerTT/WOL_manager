@@ -1,29 +1,41 @@
-from routers.devices import devices as devices_router
+from routers.devices import devices as devices_router, status_checker
+from routers.auth import auth as auth_router
+from schemas.devices import Device
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import uvicorn
 # Create FastAPI instance
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    status_checker.devices = Device.get_devices()
+    status_checker.run()
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
 
 # Add routers to main app
 app.include_router(devices_router)
+app.include_router(auth_router)
 
 # Set CORS settings
 origins = [
-    "*",
+    "http://localhost:8080",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    # allow_credentials=True,
+    allow_credentials=True,
     allow_methods=["OPTIONS", "GET", "POST"],
-    allow_headers=["OPTIONS", "GET", "POST"]
+    allow_headers=["OPTIONS", "GET", "POST", "X-API-Key", "Cache-Control"],
 )
 
-2
 
 @app.get("/")
 def read_root():
@@ -31,4 +43,4 @@ def read_root():
 
 
 if __name__ == '__main__':
-    uvicorn.run("main:app", host='0.0.0.0', port=8000, workers=4)
+    uvicorn.run("main:app", host='0.0.0.0', port=8000, workers=1)

@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  backend:
+    build: ./backend
+    container_name: wol-backend
+    volumes:
+      - ./backend/core/devices.db:/app/core/devices.db
+      - ./backend/config.d/config.yml:/app/config.d/config.yml
+    environment:
+      API_KEY: ${API_KEY}
+    network_mode: host
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: wol-frontend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src/config.d/config.yaml:/usr/share/nginx/html/config/config.yaml
+
+  telegram:
+    build: ./telegram
+    container_name: wol-telegram
+    volumes:
+      - ./telegram/config.yml:/app/config.yml
+    environment:
+      API_KEY: ${API_KEY}
+    network_mode: host
+    restart: unless-stopped

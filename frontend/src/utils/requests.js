@@ -1,3 +1,5 @@
+import { loadConfig } from './configLoader';
+
 const route_mapping = {
     devices: {
         route: "devices",
@@ -28,6 +30,12 @@ const route_mapping = {
         method: "POST",
         content_type: "application/json",
         response_type: "json"
+    },
+    update: {
+        route: "update",
+        method: "POST",
+        content_type: "application/json",
+        response_type: "json"
     }
 }
 
@@ -38,12 +46,24 @@ export async function send_request(url, target, data){
     const method = route_info["method"];
     const content_type = route_info["content_type"];
 
+    // Load config
+    const apiKeyResponse = await fetch(url.replace() + "/apiKey", {
+        method: "GET",
+        headers: {
+            "Content-Type": "json",
+            "Cache-Control" : 'no-cache, no-store, must-revalidate',
+        }
+    });
+    const apiKey = await apiKeyResponse.json();
+
     let request_data = {};
     if (Object.keys(data).length > 0) {
         request_data = {
             method: method,
             headers: {
-                "Content-Type": content_type
+                "Content-Type": content_type,
+                "Cache-Control" : 'no-cache, no-store, must-revalidate',
+                "X-API-Key": apiKey.apiKey
             },
             body: JSON.stringify(data)
         }
@@ -51,7 +71,7 @@ export async function send_request(url, target, data){
         request_data = {
             method: method,
             headers: {
-                "Content-Type": content_type
+                "X-API-Key": apiKey.apiKey
             },
         }
     }

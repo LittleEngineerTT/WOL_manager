@@ -1,21 +1,24 @@
-import {Device} from "../types";
+import Device from "../types";
 import React, {useEffect, useState} from "react";
 import {Box} from "@mui/material";
 import {Button} from "@mui/material";
 import {send_request} from "../requests";
-import config from "../../config.d/config.yaml";
+import { loadConfig } from '../configLoader';
+import {Config} from '../types';
+
 
 interface DeviceCardProps {
     device: Device;
-    setDevices: React.Dispatch<React.SetStateAction<Array<Device>>>;
+    setToUpdate: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
-
+export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => {
+    const [config, setConfig] = useState<Config>({})
     const [status, setStatus] = useState(false);
+    const [configResolved, setConfigResolved] = useState(false);
 
     const get_status = async () => {
-        const response = await send_request(config.backend_url, "status", device);
+        const response = await send_request(config["backend_url"], "status", device);
         const json_response = await response.json();
 
         if ("status" in json_response)
@@ -25,17 +28,30 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
     }
 
     const start_device = async () => {
-        await send_request(config.backend_url, "start", device);
+        if (configResolved) {
+            await send_request(config["backend_url"], "start", device);
+        }
     }
 
     const delete_device = async () => {
-        await send_request(config.backend_url, "delete", device);
-        setDevices([]);
+        if (configResolved) {
+            await send_request(config["backend_url"], "delete", device);
+            setToUpdate(true);
+        }
     }
 
     useEffect(() => {
-        setInterval(get_status, 10000);
-    }, [])
+        const getConfig = async () => {
+            setConfig(await loadConfig());
+            setConfigResolved(true);
+        }
+        getConfig();
+
+
+        if (configResolved) {
+            setInterval(get_status, 10000);
+        }
+    }, [configResolved])
 
     return (
         <Box>
@@ -44,6 +60,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setDevices}) => {
             </div>
             <div>
                 status: {status ? "True" : "False"}
+            </div>
+            <div>
+                ip: {device.ip}
+            </div>
+            <div>
+                mac: {device.mac}
             </div>
             <Button variant={"text"} onClick={start_device} sx={{color: '#FFC09F'}}>
                 Start

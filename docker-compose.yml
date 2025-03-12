@@ -2,7 +2,7 @@ version: '3'
 
 services:
   backend:
-    build: ./backend
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-backend:latest
     container_name: wol-backend
     volumes:
       - ./backend/core/devices.db:/app/core/devices.db
@@ -13,8 +13,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-frontend:latest
     container_name: wol-frontend
     ports:
       - "8080:8080"
@@ -25,7 +24,7 @@ services:
       - ./frontend/src/config.d/config.yaml:/usr/share/nginx/html/config/config.yaml
 
   telegram:
-    build: ./telegram
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-telegram:latest
     container_name: wol-telegram
     volumes:
       - ./telegram/config.yml:/app/config.yml

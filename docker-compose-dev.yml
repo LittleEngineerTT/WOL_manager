@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  backend:
+    build: ./backend
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-backend:latest
+    container_name: wol-backend
+    volumes:
+      - ./backend/core/devices.db:/app/core/devices.db
+      - ./backend/config.d/config.yml:/app/config.d/config.yml
+    environment:
+      API_KEY: ${API_KEY}
+    network_mode: host
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-frontend:latest
+    container_name: wol-frontend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src/config.d/config.yaml:/usr/share/nginx/html/config/config.yaml
+
+  telegram:
+    build: ./telegram
+    image: ghcr.io/littleengineertt/littleengineertt/wol_manager-telegram:latest
+    container_name: wol-telegram
+    volumes:
+      - ./telegram/config.yml:/app/config.yml
+    environment:
+      API_KEY: ${API_KEY}
+    network_mode: host
+    restart: unless-stopped

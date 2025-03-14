@@ -49,9 +49,9 @@ export async function send_request(url, target, data){
     // Load config
     const apiKeyResponse = await fetch(url.replace() + "/apiKey", {
         method: "GET",
+        cache: 'no-cache',
         headers: {
-            "Content-Type": "json",
-            "Cache-Control" : 'no-cache, no-store, must-revalidate',
+            "Content-Type": "json"
         }
     });
     const apiKey = await apiKeyResponse.json();

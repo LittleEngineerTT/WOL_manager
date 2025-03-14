@@ -16,12 +16,13 @@ services:
     image: ghcr.io/littleengineertt/littleengineertt/wol_manager-frontend:latest
     container_name: wol-frontend
     ports:
-      - "8080:8080"
+      - "443:443"
     restart: unless-stopped
     depends_on:
       - backend
     volumes:
       - ./frontend/src/config.d/config.yaml:/usr/share/nginx/html/config/config.yaml
+      - ./frontend/cert:/etc/nginx/ssl
 
   telegram:
     image: ghcr.io/littleengineertt/littleengineertt/wol_manager-telegram:latest

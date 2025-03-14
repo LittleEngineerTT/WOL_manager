@@ -25,7 +25,7 @@ app.include_router(auth_router)
 
 # Set CORS settings
 origins = [
-    "http://localhost:8080",
+    "https://localhost"
 ]
 
 app.add_middleware(

@@ -18,6 +18,7 @@ services:
     image: ghcr.io/littleengineertt/littleengineertt/wol_manager-frontend:latest
     container_name: wol-frontend
     ports:
+      - "8080:8080"
       - "443:443"
     restart: unless-stopped
     depends_on:

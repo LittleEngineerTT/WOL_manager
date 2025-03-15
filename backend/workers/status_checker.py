@@ -60,12 +60,19 @@ class StatusChecker:
                             status = parts[-1] if len(parts) > 5 else ""
 
                             # Check for status
-                            self.devices_status[mac] = True if status == "REACHABLE" else False
+                            if status == "REACHABLE":
+                                device_status = "up"
+                            elif status == "UNREACHABLE":
+                                device_status = "down"
+                            else:
+                                continue
+
+                            self.devices_status[mac] = device_status
                             targeted_mac.remove(mac)
 
             for device in self.devices:
                 if device.mac not in self.devices_status.keys():
-                    self.devices_status[device.mac] = False
+                    self.devices_status[device.mac] = "down"
 
         except subprocess.CalledProcessError:
             return

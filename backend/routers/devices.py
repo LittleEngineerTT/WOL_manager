@@ -1,4 +1,3 @@
-from core.auth import get_api_key
 from core.config import get_config
 from schemas.devices import Device
 from workers.status_checker import StatusChecker
@@ -19,26 +18,27 @@ status_checker = StatusChecker(config["network"])
 
 
 @devices.get("/devices")
-def retrieve_devices(api_key: APIKey = Depends(get_api_key)):
+def retrieve_devices():
     devices = Device.get_devices()
     status_checker.devices = devices
+    print(devices)
     return {"devices": devices}
 
 
 @devices.post("/status")
-def get_status(device: Device, api_key: APIKey = Depends(get_api_key)):
+def get_status(device: Device):
     status = status_checker.devices_status[device.mac]
     return {"status": status}
 
 
 @devices.post("/start")
-def start_device(device: Device, api_key: APIKey = Depends(get_api_key)):
+def start_device(device: Device):
     device.start()
     return
 
 
 @devices.post("/register")
-def register_device(device: Device, api_key: APIKey = Depends(get_api_key)):
+def register_device(device: Device):
     status_code = device.register()
 
     if status_code != 200:
@@ -48,12 +48,12 @@ def register_device(device: Device, api_key: APIKey = Depends(get_api_key)):
 
 
 @devices.post("/delete")
-def delete_device(device: Device, api_key: APIKey = Depends(get_api_key)):
+def delete_device(device: Device):
     device.delete()
     return
 
 
 @devices.post("/update")
-def update_device(device: Device, api_key: APIKey = Depends(get_api_key)):
+def update_device(device: Device):
     device.update()
     return

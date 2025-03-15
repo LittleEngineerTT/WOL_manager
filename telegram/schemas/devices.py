@@ -4,11 +4,8 @@ from typing import Self
 import requests
 
 
-# Load api key
-API_KEY = getenv("API_KEY")
 headers = {
-    "Content-Type": "application/json",
-    "X-API-Key": "tata"
+    "Content-Type": "application/json"
 }
 
 

@@ -46,33 +46,18 @@ export async function send_request(url, target, data){
     const method = route_info["method"];
     const content_type = route_info["content_type"];
 
-    // Load config
-    const apiKeyResponse = await fetch(url.replace() + "/apiKey", {
-        method: "GET",
-        headers: {
-            "Content-Type": "json",
-            "Cache-Control" : 'no-cache, no-store, must-revalidate',
-        }
-    });
-    const apiKey = await apiKeyResponse.json();
-
     let request_data = {};
     if (Object.keys(data).length > 0) {
         request_data = {
             method: method,
             headers: {
-                "Content-Type": content_type,
-                "Cache-Control" : 'no-cache, no-store, must-revalidate',
-                "X-API-Key": apiKey.apiKey
+                "Content-Type": content_type
             },
             body: JSON.stringify(data)
         }
     } else {
         request_data = {
-            method: method,
-            headers: {
-                "X-API-Key": apiKey.apiKey
-            },
+            method: method
         }
     }
 

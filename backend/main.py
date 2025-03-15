@@ -23,7 +23,7 @@ app.include_router(devices_router)
 
 # Set CORS settings
 origins = [
-    "https://localhost"
+    "http://localhost:8080"
 ]
 
 app.add_middleware(

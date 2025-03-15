@@ -10,7 +10,6 @@ First is a web app, second is a telegram bot.
 - docker compose
 
 ### Configuration
-- In the root dir, edit .env file to select a very strong api-key
 - Fulfil `backend/config.d/config.yml` network field with your bot-id.
 - Feel free to change default path of database_url
 - Generate ssl certificate inside frontend/cert/ using `openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout mydomain.local.key -out mydomain.local.crt`.

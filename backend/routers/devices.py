@@ -21,7 +21,6 @@ status_checker = StatusChecker(config["network"])
 def retrieve_devices():
     devices = Device.get_devices()
     status_checker.devices = devices
-    print(devices)
     return {"devices": devices}
 
 

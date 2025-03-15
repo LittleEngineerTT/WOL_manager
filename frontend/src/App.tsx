@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 import Box from '@mui/material/Box'
-import ApplicationBar from './components/ApplicationBar';
 
 import config from './config.d/config.yaml';
 import {Devices} from "./components/Devices";
@@ -15,7 +14,6 @@ const RouteCreator: React.FC<RouteCreatorInterface> = ({name}) => {
             <Box sx={{
                 height: "100vh",
             }}>
-                <ApplicationBar/>
                 <Devices />
             </Box>
         )
@@ -24,7 +22,6 @@ const RouteCreator: React.FC<RouteCreatorInterface> = ({name}) => {
             <Box sx={{
                     height: "100vh",
                   }}>
-                <ApplicationBar/>
             </Box>
         )
     }

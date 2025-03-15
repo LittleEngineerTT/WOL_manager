@@ -1,12 +1,15 @@
+from logging import Logger
+
 import subprocess
 import threading
 
 
 class StatusChecker:
 
-    def __init__(self, network: str):
+    def __init__(self, network: str, logger: Logger):
         self.devices = []
         self.devices_status = {}
+        self.logger = logger
         self.network = network
         self.running = False
 
@@ -66,6 +69,11 @@ class StatusChecker:
                                 device_status = "down"
                             else:
                                 continue
+
+                            # Check for device shutdown
+                            if device_status == "down" and self.devices_status[mac] == "up":
+                                device = next((device for device in self.devices if device.mac == mac), None)
+                                self.logger.info(f"{device.hostname} has been shutdown")
 
                             self.devices_status[mac] = device_status
                             targeted_mac.remove(mac)

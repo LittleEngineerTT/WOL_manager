@@ -1,3 +1,4 @@
+from collections import deque
 from core.config import get_config
 from libs.logger import setup_logger
 from schemas.devices import Device
@@ -64,3 +65,10 @@ def update_device(device: Device):
     logger.info(f"Updating device %s", device.hostname)
     device.update()
     return
+
+
+@devices.get("/history")
+def get_history():
+    with open("history.log", "r") as history_file:
+        history = list(deque(history_file, maxlen=20))
+        return {"history": history}

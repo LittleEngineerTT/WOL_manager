@@ -48,8 +48,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => 
         getConfig();
 
         // Get on load devices status
-        get_status();
         if (configResolved) {
+            get_status();
             setInterval(get_status, 10000);
         }
     }, [configResolved])

@@ -8,6 +8,7 @@ services:
     volumes:
       - ./backend/core/devices.db:/app/core/devices.db
       - ./backend/config.d/config.yml:/app/config.d/config.yml
+      - ./backend/history.log:/app/history.log
     network_mode: host
     restart: unless-stopped
 

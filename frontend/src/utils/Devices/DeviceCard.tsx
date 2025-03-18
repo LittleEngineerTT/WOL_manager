@@ -14,7 +14,7 @@ interface DeviceCardProps {
 
 export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => {
     const [config, setConfig] = useState<Config>({})
-    const [status, setStatus] = useState(false);
+    const [status, setStatus] = useState("");
     const [configResolved, setConfigResolved] = useState(false);
 
     const get_status = async () => {
@@ -47,8 +47,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => 
         }
         getConfig();
 
-
+        // Get on load devices status
         if (configResolved) {
+            get_status();
             setInterval(get_status, 10000);
         }
     }, [configResolved])
@@ -59,7 +60,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({device, setToUpdate}) => 
                 {device.hostname}
             </div>
             <div>
-                status: {status ? "True" : "False"}
+                status: {status}
             </div>
             <div>
                 ip: {device.ip}

@@ -1,4 +1,6 @@
+from collections import deque
 from core.config import get_config
+from libs.logger import setup_logger
 from schemas.devices import Device
 from workers.status_checker import StatusChecker
 
@@ -13,15 +15,17 @@ devices = APIRouter(
 # Get config
 config = get_config()
 
+# Set up logger
+logger = setup_logger("history.log")
+
 # Create status checker instance
-status_checker = StatusChecker(config["network"])
+status_checker = StatusChecker(config["network"], logger=logger)
 
 
 @devices.get("/devices")
 def retrieve_devices():
     devices = Device.get_devices()
     status_checker.devices = devices
-    print(devices)
     return {"devices": devices}
 
 
@@ -33,12 +37,14 @@ def get_status(device: Device):
 
 @devices.post("/start")
 def start_device(device: Device):
+    logger.info("Starting device %s", device.hostname)
     device.start()
     return
 
 
 @devices.post("/register")
 def register_device(device: Device):
+    logger.info("Registering device %s", device.hostname)
     status_code = device.register()
 
     if status_code != 200:
@@ -49,11 +55,20 @@ def register_device(device: Device):
 
 @devices.post("/delete")
 def delete_device(device: Device):
+    logger.info("Deleting device %s", device.hostname)
     device.delete()
     return
 
 
 @devices.post("/update")
 def update_device(device: Device):
+    logger.info(f"Updating device %s", device.hostname)
     device.update()
     return
+
+
+@devices.get("/history")
+def get_history():
+    with open("history.log", "r") as history_file:
+        history = list(deque(history_file, maxlen=20))
+        return {"history": history}

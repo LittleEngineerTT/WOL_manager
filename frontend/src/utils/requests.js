@@ -1,5 +1,3 @@
-import { loadConfig } from './configLoader';
-
 const route_mapping = {
     devices: {
         route: "devices",
@@ -34,6 +32,12 @@ const route_mapping = {
     update: {
         route: "update",
         method: "POST",
+        content_type: "application/json",
+        response_type: "json"
+    },
+    history: {
+        route: "history",
+        method: "GET",
         content_type: "application/json",
         response_type: "json"
     }

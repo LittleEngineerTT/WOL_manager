@@ -10,6 +10,7 @@ import Grid from '@mui/material/Grid2';
 import Device from '../utils/types';
 import {DeviceCard} from "../utils/Devices/DeviceCard";
 import {DeviceRegister} from "../utils/Devices/DeviceRegister";
+import {DeviceHistory} from "../utils/Devices/DeviceHistory";
 
 
 interface DevicesProps {
@@ -77,7 +78,12 @@ export const Devices: React.FC<DevicesProps> = () => {
                     ))}
                 </Grid>
 
-                    <DeviceRegister setToUpdate={setToUpdate}/>
+                <DeviceRegister setToUpdate={setToUpdate}/>
+                <Grid padding={"10px"} container spacing={1} sx={{
+                    backgroundColor: "#FFEE93"
+                }}>
+                    <DeviceHistory />
+                </Grid>
             </Box>
 
         </Container>

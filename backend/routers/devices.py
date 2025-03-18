@@ -70,5 +70,5 @@ def update_device(device: Device):
 @devices.get("/history")
 def get_history():
     with open("history.log", "r") as history_file:
-        history = list(deque(history_file, maxlen=20))
+        history = list(deque(history_file, maxlen=10))
         return {"history": history}

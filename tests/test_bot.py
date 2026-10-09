@@ -238,3 +238,88 @@ def test_wake_skips_invalid_mac_stored_by_a_previous_version(context, store):
     update = message_update()
     run(bot.wake_command, update, context, "broken")
     assert "Could not send the magic packet to broken" in replies(update)[0]
+
+
+@pytest.fixture
+def mqtt_context(store):
+    settings = Settings(
+        bot_token="t", allowed_user_ids=frozenset({ALLOWED, 43}), broadcast_address="192.168.1.255", mqtt_host="mqtt"
+    )
+    return SimpleNamespace(bot_data={"settings": settings, "store": store}, args=[])
+
+
+def application(context):
+    return SimpleNamespace(bot_data=context.bot_data, bot=SimpleNamespace(send_message=AsyncMock()))
+
+
+def sent(app):
+    return [(call.args[0], call.args[1]) for call in app.bot.send_message.call_args_list]
+
+
+def test_bind_then_press_binds_the_button(mqtt_context, store, woken):
+    store.add(DESKTOP)
+    update = message_update()
+    update.effective_chat = SimpleNamespace(id=ALLOWED)
+    run(bot.bind_command, update, mqtt_context, "desktop")
+    assert "Press the button" in replies(update)[0]
+
+    app = application(mqtt_context)
+    asyncio.run(bot.handle_button_event(app, bot.mqtt.ButtonEvent("remote", "1_single")))
+    assert store.device_for_button("remote", "1_single") == DESKTOP
+    assert sent(app) == [(ALLOWED, "<code>remote</code> 1_single now wakes <b>desktop</b>.")]
+    assert woken == []
+
+
+def test_button_press_wakes_and_notifies_every_allowed_user(mqtt_context, store, woken):
+    store.add(DESKTOP)
+    store.bind("remote", "1_single", "desktop")
+    app = application(mqtt_context)
+    asyncio.run(bot.handle_button_event(app, bot.mqtt.ButtonEvent("remote", "1_single")))
+    assert woken == [("aa:bb:cc:dd:ee:ff", "192.168.1.255", 9)]
+    assert sorted(user for user, _ in sent(app)) == [ALLOWED, 43]
+    assert "magic packet sent to <b>desktop</b>" in sent(app)[0][1]
+
+
+def test_unbound_button_is_ignored(mqtt_context, store, woken):
+    store.add(DESKTOP)
+    app = application(mqtt_context)
+    asyncio.run(bot.handle_button_event(app, bot.mqtt.ButtonEvent("remote", "1_single")))
+    assert woken == []
+    assert sent(app) == []
+
+
+def test_expired_bind_does_not_bind(mqtt_context, store, woken):
+    store.add(DESKTOP)
+    mqtt_context.bot_data["pending_bind"] = ("desktop", ALLOWED, 0.0)
+    app = application(mqtt_context)
+    asyncio.run(bot.handle_button_event(app, bot.mqtt.ButtonEvent("remote", "1_single")))
+    assert store.bindings() == []
+    assert "pending_bind" not in mqtt_context.bot_data
+
+
+def test_notification_failure_does_not_stop_other_users(mqtt_context, store, woken):
+    store.add(DESKTOP)
+    store.bind("switch", "single", "desktop")
+    app = application(mqtt_context)
+    app.bot.send_message.side_effect = [bot.TelegramError("blocked"), None]
+    asyncio.run(bot.handle_button_event(app, bot.mqtt.ButtonEvent("switch", "single")))
+    assert app.bot.send_message.await_count == 2
+
+
+def test_unbind_and_list_buttons(mqtt_context, store):
+    store.add(DESKTOP)
+    store.bind("switch", "single", "desktop")
+    update = message_update()
+    run(bot.buttons_command, update, mqtt_context)
+    assert replies(update) == ["<b>desktop</b> ← <code>switch</code> single"]
+
+    update = message_update()
+    run(bot.unbind_command, update, mqtt_context, "desktop")
+    assert "removed" in replies(update)[0]
+    assert store.bindings() == []
+
+
+def test_mqtt_commands_hidden_without_broker(context):
+    update = message_update()
+    run(bot.help_command, update, context)
+    assert "/bind" not in replies(update)[0]

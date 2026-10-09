@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import html
 import logging
+import time
 from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import Application, ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from . import network
+from . import mqtt, network
 from .config import Settings
 from .storage import Device, DeviceExistsError, DeviceStore
 from .validation import normalize_ip, normalize_mac, validate_name
@@ -26,9 +29,23 @@ COMMANDS = (
     ("devices", "List registered devices"),
     ("add", "Register a device: /add NAME MAC IP"),
     ("delete", "Remove a device: /delete NAME"),
+    ("bind", "Wake a device with a Zigbee button: /bind NAME, then press the button"),
+    ("unbind", "Remove the buttons of a device: /unbind NAME"),
+    ("buttons", "List Zigbee buttons and the devices they wake"),
     ("help", "Show this help"),
 )
-HELP_TEXT = "\n".join(f"/{name} — {description}" for name, description in COMMANDS)
+
+
+def _commands(settings: Settings) -> list[tuple[str, str]]:
+    return [(name, text) for name, text in COMMANDS if settings.mqtt_host or name not in MQTT_COMMANDS]
+
+
+def _help_text(settings: Settings) -> str:
+    return "\n".join(f"/{name} — {description}" for name, description in _commands(settings))
+
+
+MQTT_COMMANDS = frozenset({"bind", "unbind", "buttons"})
+BIND_TIMEOUT = 60.0
 
 Handler = Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
 
@@ -115,8 +132,7 @@ async def _with_target(
     await run(update, context, targets)
 
 
-async def _wake(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: list[Device]) -> None:
-    settings = _settings(context)
+async def _send_magic_packets(settings: Settings, devices: list[Device]) -> str:
     woken, failed = [], []
     for device in devices:
         try:
@@ -131,7 +147,11 @@ async def _wake(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: lis
         lines.append("Magic packet sent to " + ", ".join(f"<b>{html.escape(n)}</b>" for n in woken) + ".")
     if failed:
         lines.append("Could not send the magic packet to " + ", ".join(html.escape(n) for n in failed) + ".")
-    await _reply(update, "\n".join(lines))
+    return "\n".join(lines)
+
+
+async def _wake(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: list[Device]) -> None:
+    await _reply(update, await _send_magic_packets(_settings(context), devices))
 
 
 async def _status(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: list[Device]) -> None:
@@ -158,7 +178,7 @@ async def _delete(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: l
 
 @authorized
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await _reply(update, html.escape(HELP_TEXT))
+    await _reply(update, html.escape(_help_text(_settings(context))))
 
 
 @authorized
@@ -200,7 +220,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Telegram sends a bare /start when a chat is opened: show the help.
     # /start NAME is kept as an alias of /wake NAME.
     if not context.args:
-        await _reply(update, "Wake-on-LAN bot.\n\n" + html.escape(HELP_TEXT))
+        await _reply(update, "Wake-on-LAN bot.\n\n" + html.escape(_help_text(_settings(context))))
         return
     await _with_target(update, context, "wake", "Which device should I wake up?", _wake)
 
@@ -213,6 +233,79 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @authorized
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _with_target(update, context, "delete", "Which device should I delete?", _delete, with_all=False)
+
+
+@authorized
+async def bind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _with_target(update, context, "bind", "Which device should a button wake?", _start_binding, with_all=False)
+
+
+async def _start_binding(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: list[Device]) -> None:
+    chat = update.effective_chat
+    if chat is None:
+        return
+    device = devices[0]
+    context.bot_data["pending_bind"] = (device.name, chat.id, time.monotonic() + BIND_TIMEOUT)
+    await _reply(
+        update,
+        f"Press the button that should wake <b>{html.escape(device.name)}</b> within {BIND_TIMEOUT:.0f} seconds.\n"
+        "Each kind of press (single, double, long…) can wake a different device.",
+    )
+
+
+@authorized
+async def unbind_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _with_target(update, context, "unbind", "Which device should lose its buttons?", _unbind, with_all=False)
+
+
+async def _unbind(update: Update, context: ContextTypes.DEFAULT_TYPE, devices: list[Device]) -> None:
+    device = devices[0]
+    removed = _store(context).unbind(device.name)
+    name = html.escape(device.name)
+    await _reply(update, f"Buttons of <b>{name}</b> removed." if removed else f"No button wakes <b>{name}</b>.")
+
+
+@authorized
+async def buttons_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    bindings = _store(context).bindings()
+    if not bindings:
+        await _reply(update, "No buttons yet. Bind one with /bind NAME.")
+        return
+    lines = [
+        f"<b>{html.escape(b.device)}</b> ← <code>{html.escape(b.button)}</code> {html.escape(b.action)}"
+        for b in bindings
+    ]
+    await _reply(update, "\n".join(lines))
+
+
+async def handle_button_event(application: Application, event: mqtt.ButtonEvent) -> None:
+    """Bind a button when /bind is pending, otherwise wake the device bound to it."""
+    store: DeviceStore = application.bot_data["store"]
+    settings: Settings = application.bot_data["settings"]
+    button, action = html.escape(event.button), html.escape(event.action)
+
+    pending = application.bot_data.pop("pending_bind", None)
+    if pending:
+        name, chat_id, deadline = pending
+        if time.monotonic() <= deadline and store.get(name):
+            previous = store.bind(event.button, event.action, name)
+            text = f"<code>{button}</code> {action} now wakes <b>{html.escape(name)}</b>."
+            if previous and previous.lower() != name.lower():
+                text += f" It woke <b>{html.escape(previous)}</b> before."
+            await application.bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
+            return
+
+    device = store.device_for_button(event.button, event.action)
+    if device is None:
+        return
+    result = await _send_magic_packets(settings, [device])
+    text = f"Button <code>{button}</code> {action}: {result[0].lower()}{result[1:]}"
+    for user_id in settings.allowed_user_ids:
+        try:
+            await application.bot.send_message(user_id, text, parse_mode=ParseMode.HTML)
+        except TelegramError as err:
+            # The user never opened a chat with the bot, or blocked it.
+            log.warning("Could not notify user %s: %s", user_id, err)
 
 
 @authorized
@@ -231,11 +324,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _reply(update, f"<b>{html.escape(name)}</b> deleted." if deleted else "Device already deleted.")
         return
 
-    runners = {"wake": _wake, "status": _status, "delete": _delete}
+    runners = {"wake": _wake, "status": _status, "delete": _delete, "bind": _start_binding, "unbind": _unbind}
     if action not in runners:
         await query.answer()
         return
-    targets = _resolve(store, name) if action != "delete" else ([d] if (d := store.get(name)) else None)
+    single = action in {"delete", "bind", "unbind"}
+    targets = ([d] if (d := store.get(name)) else None) if single else _resolve(store, name)
     if not targets:
         await _reply(update, f"Unknown device <b>{html.escape(name)}</b>. See /devices.")
         return
@@ -249,11 +343,24 @@ async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def _post_init(application: Application) -> None:
-    await application.bot.set_my_commands([BotCommand(name, description) for name, description in COMMANDS])
+    settings: Settings = application.bot_data["settings"]
+    await application.bot.set_my_commands([BotCommand(name, text) for name, text in _commands(settings)])
+    if settings.mqtt_host:
+        application.bot_data["mqtt_task"] = asyncio.create_task(
+            mqtt.listen(settings, lambda event: handle_button_event(application, event))
+        )
+
+
+async def _post_stop(application: Application) -> None:
+    task: asyncio.Task[None] | None = application.bot_data.pop("mqtt_task", None)
+    if task:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 def build_application(settings: Settings, store: DeviceStore) -> Application:
-    application = ApplicationBuilder().token(settings.bot_token).post_init(_post_init).build()
+    application = ApplicationBuilder().token(settings.bot_token).post_init(_post_init).post_stop(_post_stop).build()
     application.bot_data["settings"] = settings
     application.bot_data["store"] = store
 
@@ -267,6 +374,9 @@ def build_application(settings: Settings, store: DeviceStore) -> Application:
         ("delete", delete_command),
     ):
         application.add_handler(CommandHandler(name, handler))
+    if settings.mqtt_host:
+        for name, handler in (("bind", bind_command), ("unbind", unbind_command), ("buttons", buttons_command)):
+            application.add_handler(CommandHandler(name, handler))
     application.add_handler(CallbackQueryHandler(button))
     application.add_error_handler(_on_error)
     return application

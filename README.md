@@ -17,6 +17,14 @@ whether they are up.
 Without a name, `/wake`, `/status` and `/delete` show a button for each device.
 `/start NAME` is kept as an alias of `/wake NAME`.
 
+With [Zigbee buttons](#zigbee-buttons), these commands are also available:
+
+| Command | Description |
+|---|---|
+| `/bind NAME` | Press a button within 60 seconds: that press now wakes the device. |
+| `/unbind NAME` | Remove the buttons of a device. |
+| `/buttons` | List buttons and the devices they wake. |
+
 Only the Telegram users listed in `ALLOWED_USER_IDS` can use the bot. Anyone else
 gets a refusal with their user ID, which makes it easy to authorize a new user.
 
@@ -51,6 +59,26 @@ the status falls back to the neighbour table only.
 | `WOL_PORT` | `9` | UDP port of magic packets. |
 | `DATABASE_PATH` | `devices.db`, `/data/devices.db` in the image | SQLite database of registered devices. |
 | `LOG_LEVEL` | `INFO` | Python log level. |
+
+| `MQTT_HOST` | *(empty)* | MQTT broker used by Zigbee2MQTT. Buttons are disabled when empty. |
+| `MQTT_PORT` | `1883` | Port of the MQTT broker. |
+| `MQTT_USERNAME`, `MQTT_PASSWORD` | *(empty)* | Credentials of the MQTT broker. |
+| `MQTT_BASE_TOPIC` | `zigbee2mqtt` | `base_topic` of Zigbee2MQTT. |
+
+### Zigbee buttons
+
+The bot listens to the button actions published by
+[Zigbee2MQTT](https://www.zigbee2mqtt.io/) and wakes the device bound to each
+action. Every kind of press is bound separately: a single click and a double
+click of the same button, or each key of a remote, can wake different devices.
+
+1. Set `MQTT_HOST` and, if the broker requires them, `MQTT_USERNAME` and `MQTT_PASSWORD`.
+2. Send `/bind desktop` to the bot, then press the button.
+3. Every allowed user gets a message each time a button wakes a device.
+
+Any device publishing an `action` works, for example an Aqara
+`lumi.sensor_switch.aq3` (`single`, `double`, `hold`…) or a Tuya `TS0044`
+remote (`1_single`, `2_double`, `4_hold`…).
 
 The database keeps the layout of previous versions. To keep your devices, copy
 your former `backend/core/devices.db` into the `wol-data` volume:

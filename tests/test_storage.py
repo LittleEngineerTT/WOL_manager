@@ -57,3 +57,32 @@ def test_reads_database_of_the_former_web_backend(tmp_path):
     assert store.list() == [DESKTOP]
     with pytest.raises(DeviceExistsError):
         store.add(Device("other", "aa:bb:cc:dd:ee:ff", "192.168.1.30"))
+
+
+def test_button_bindings(tmp_path):
+    store = DeviceStore(tmp_path / "devices.db")
+    desktop = Device("desktop", "aa:bb:cc:dd:ee:ff", "192.168.1.20")
+    nas = Device("nas", "aa:bb:cc:dd:ee:01", "192.168.1.2")
+    store.add(desktop)
+    store.add(nas)
+
+    assert store.bind("remote", "1_single", "desktop") is None
+    assert store.bind("remote", "2_single", "nas") is None
+    assert store.device_for_button("remote", "1_single") == desktop
+    assert store.device_for_button("remote", "3_single") is None
+
+    assert store.bind("remote", "1_single", "nas") == "desktop"
+    assert store.device_for_button("remote", "1_single") == nas
+    assert [b.action for b in store.bindings()] == ["1_single", "2_single"]
+
+    assert store.unbind("NAS") == 2
+    assert store.bindings() == []
+
+
+def test_deleting_a_device_removes_its_buttons(tmp_path):
+    store = DeviceStore(tmp_path / "devices.db")
+    store.add(Device("desktop", "aa:bb:cc:dd:ee:ff", "192.168.1.20"))
+    store.bind("switch", "single", "desktop")
+    store.delete("desktop")
+    store.add(Device("desktop", "aa:bb:cc:dd:ee:02", "192.168.1.21"))
+    assert store.device_for_button("switch", "single") is None

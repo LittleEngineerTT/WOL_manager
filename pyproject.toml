@@ -1,10 +1,11 @@
 [project]
 name = "wol-bot"
-version = "2.0.0"
+version = "2.1.0"
 description = "Telegram bot to wake devices on the local network"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiomqtt==2.5.1",
     "python-telegram-bot==22.8",
     "wakeonlan==4.0.0",
 ]

@@ -17,7 +17,13 @@ CREATE TABLE IF NOT EXISTS devices (
     hostname VARCHAR NOT NULL,
     mac VARCHAR NOT NULL PRIMARY KEY,
     ip VARCHAR NOT NULL UNIQUE
-)
+);
+CREATE TABLE IF NOT EXISTS buttons (
+    button VARCHAR NOT NULL,
+    action VARCHAR NOT NULL,
+    hostname VARCHAR NOT NULL,
+    PRIMARY KEY (button, action)
+);
 """
 
 
@@ -26,6 +32,15 @@ class Device:
     name: str
     mac: str
     ip: str
+
+
+@dataclass(frozen=True)
+class ButtonBinding:
+    """A Zigbee2MQTT button action that wakes a device."""
+
+    button: str
+    action: str
+    device: str
 
 
 class DeviceExistsError(Exception):
@@ -37,7 +52,7 @@ class DeviceStore:
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._transaction() as conn:
-            conn.execute(_SCHEMA)
+            conn.executescript(_SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
@@ -80,4 +95,39 @@ class DeviceStore:
     def delete(self, name: str) -> bool:
         with self._transaction() as conn:
             cursor = conn.execute("DELETE FROM devices WHERE lower(hostname) = lower(?)", (name,))
+            conn.execute("DELETE FROM buttons WHERE lower(hostname) = lower(?)", (name,))
         return cursor.rowcount > 0
+
+    def bind(self, button: str, action: str, device: str) -> str | None:
+        """Make BUTTON ACTION wake DEVICE. Return the device it woke before, if any."""
+        with self._transaction() as conn:
+            previous = conn.execute(
+                "SELECT hostname FROM buttons WHERE button = ? AND action = ?", (button, action)
+            ).fetchone()
+            conn.execute(
+                "INSERT OR REPLACE INTO buttons (button, action, hostname) VALUES (?, ?, ?)", (button, action, device)
+            )
+        return previous[0] if previous else None
+
+    def unbind(self, device: str) -> int:
+        """Remove every button bound to DEVICE and return how many were removed."""
+        with self._transaction() as conn:
+            cursor = conn.execute("DELETE FROM buttons WHERE lower(hostname) = lower(?)", (device,))
+        return cursor.rowcount
+
+    def bindings(self) -> list[ButtonBinding]:
+        with self._transaction() as conn:
+            rows = conn.execute(
+                "SELECT button, action, hostname FROM buttons ORDER BY lower(hostname), button, action"
+            ).fetchall()
+        return [ButtonBinding(*row) for row in rows]
+
+    def device_for_button(self, button: str, action: str) -> Device | None:
+        with self._transaction() as conn:
+            row = conn.execute(
+                "SELECT d.hostname, d.mac, d.ip FROM buttons b"
+                " JOIN devices d ON lower(d.hostname) = lower(b.hostname)"
+                " WHERE b.button = ? AND b.action = ?",
+                (button, action),
+            ).fetchone()
+        return self._to_device(row) if row else None

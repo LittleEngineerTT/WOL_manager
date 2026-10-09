@@ -19,6 +19,11 @@ class Settings:
     database_path: str = "devices.db"
     broadcast_address: str = "255.255.255.255"
     wol_port: int = 9
+    mqtt_host: str | None = None
+    mqtt_port: int = 1883
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
+    mqtt_base_topic: str = "zigbee2mqtt"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -40,12 +45,11 @@ class Settings:
         except ValueError as err:
             raise ConfigError(f"WOL_BROADCAST_ADDRESS is not an IP address: {broadcast}") from err
 
-        try:
-            port = int(env.get("WOL_PORT", cls.wol_port))
-        except ValueError as err:
-            raise ConfigError("WOL_PORT must be an integer") from err
-        if not 1 <= port <= 65535:
-            raise ConfigError("WOL_PORT must be between 1 and 65535")
+        port = _port(env, "WOL_PORT", cls.wol_port)
+        mqtt_host = env.get("MQTT_HOST", "").strip() or None
+        base_topic = env.get("MQTT_BASE_TOPIC", cls.mqtt_base_topic).strip().strip("/")
+        if not base_topic or any(char in base_topic for char in "+#"):
+            raise ConfigError("MQTT_BASE_TOPIC must be a topic without wildcards")
 
         return cls(
             bot_token=token,
@@ -53,4 +57,19 @@ class Settings:
             database_path=env.get("DATABASE_PATH", cls.database_path),
             broadcast_address=broadcast,
             wol_port=port,
+            mqtt_host=mqtt_host,
+            mqtt_port=_port(env, "MQTT_PORT", cls.mqtt_port),
+            mqtt_username=env.get("MQTT_USERNAME", "").strip() or None,
+            mqtt_password=env.get("MQTT_PASSWORD") or None,
+            mqtt_base_topic=base_topic,
         )
+
+
+def _port(env: Mapping[str, str], name: str, default: int) -> int:
+    try:
+        port = int(env.get(name) or default)
+    except ValueError as err:
+        raise ConfigError(f"{name} must be an integer") from err
+    if not 1 <= port <= 65535:
+        raise ConfigError(f"{name} must be between 1 and 65535")
+    return port
